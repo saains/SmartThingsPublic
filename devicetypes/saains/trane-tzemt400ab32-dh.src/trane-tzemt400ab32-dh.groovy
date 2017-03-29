@@ -151,10 +151,10 @@ metadata {
 }
 
 def parse(String description)
-{  log.debug "L154 parse description : $description"
+{  log.debug "TZEM parse description : $description"
 //, [0x42:1, 0x43:2, 0x31: 3, 0x20: 1, 0x70: 1]
 	def map = createEvent(zwaveEvent(zwave.parse(description))) 
-	log.debug "map is: $map"
+	//log.debug "map is: $map"
     if (!map) {
      
 		return null
@@ -194,7 +194,7 @@ def parse(String description)
         //log.debug "L170 map name is: $map.name  map value is: $map.value"
 		state.lastTriedFanMode = map.value
 	}
-	log.debug "L198 Parse result is: $result"
+	//log.debug "L198 Parse result is: $result"
 	result
 }
 
@@ -320,7 +320,7 @@ def zwaveEvent(physicalgraph.zwave.commands.thermostatfanmodev3.ThermostatFanMod
 			map.value = "fanCirculate"
 			break
 	}
-    log.debug "L307 thermostate fanMode is: $map.value"
+    //log.debug "L307 thermostate fanMode is: $map.value"
 	map.name = "thermostatFanMode"
 	map.displayed = false
 	map
@@ -342,16 +342,16 @@ def zwaveEvent(physicalgraph.zwave.commands.thermostatmodev2.ThermostatModeSuppo
 def zwaveEvent(physicalgraph.zwave.commands.thermostatfanmodev3.ThermostatFanModeSupportedReport cmd) {
 	def supportedFanModes = "fanAuto fanOn fanCirculate "
 	state.supportedFanModes = supportedFanModes
-    log.debug "L331 supportedFanModes are: $state.supportedFanModes , cmd is $cmd"
+    //log.debug "L331 supportedFanModes are: $state.supportedFanModes , cmd is $cmd"
 }
 
 
 def zwaveEvent(physicalgraph.zwave.commands.configurationv2.ConfigurationReport cmd) {
-    log.debug "L350 Zwave event received: $cmd"
+    //log.debug "L350 Zwave event received: $cmd"
     
 	def map = [name: "", unit: ""]
-    log.debug "L353 configuratonValue: $cmd.scaledConfigurationValue"
-    log.debug "L353 parameterNumber: $cmd.parameterNumber"
+    //log.debug "L353 configuratonValue: $cmd.scaledConfigurationValue"
+    //log.debug "L353 parameterNumber: $cmd.parameterNumber"
 
 	if (cmd.parameterNumber == 132){
 		map.name = "ScheduleModeState"
@@ -384,7 +384,7 @@ map
 }
 
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
-	log.warn "L369 Unexpected zwave command: $cmd"
+	log.warn "Unexpected zwave command: $cmd"
 }
 
 // Command Implementations
@@ -409,7 +409,7 @@ def setHeatingSetpoint(degrees, delay = 30000) {
 }
 
 def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
-	log.trace "setHeatingSetpoint($degrees, $delay)"
+	//log.trace "setHeatingSetpoint($degrees, $delay)"
 	def deviceScale = state.scale ?: 1
 	def deviceScaleString = deviceScale == 2 ? "C" : "F"
     def locationScale = getTemperatureScale()
@@ -439,7 +439,7 @@ def setCoolingSetpoint(degrees, delay = 30000) {
 }
 
 def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
-    log.trace "setCoolingSetpoint($degrees, $delay)"
+    //log.trace "setCoolingSetpoint($degrees, $delay)"
 	def deviceScale = state.scale ?: 1
 	def deviceScaleString = deviceScale == 2 ? "C" : "F"
     def locationScale = getTemperatureScale()
