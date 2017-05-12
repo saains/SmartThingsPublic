@@ -20,12 +20,12 @@ metadata {
         //capability "Switch"
         //capability "switchLevel"
         
-		command "on"
-		command "off"
-        command "clearassoc"
+		//command "on"
+		//command "off"
+        //command "clearassoc"
         command "CheckIndicators"
-        command "initialize"
-        command "scene1on"
+        //command "initialize"
+
         
         attribute "currentButton", "STRING"
         attribute "numberOfButtons", "number"
@@ -373,30 +373,7 @@ return (cmd)
 
 
 
-def on() {
-def cmds = []
-cmds << zwave.associationV1.associationRemove(groupingIdentifier:1, nodeId:[]).format()
-cmds << zwave.associationV1.associationSet(groupingIdentifier:1, nodeId:[0x1D, 0x19]).format()
-cmds << zwave.configurationV1.configurationSet(parameterNumber:1, size:1, configurationValue:[255]).format()
-cmds << zwave.associationV1.associationSet(groupingIdentifier:1, nodeId:[0x15]).format()
-cmds << zwave.configurationV1.configurationSet(parameterNumber:1, size:1, configurationValue:[25]).format()
-cmds << zwave.sceneControllerConfV1.sceneControllerConfSet(groupId:1, sceneId:2, dimmingDuration:1).format()
-cmds << zwave.associationV1.associationSet(groupingIdentifier:1, nodeId:[0x08, 0x16, zwaveHubNodeId]).format()
-cmds << zwave.associationV1.associationGet(groupingIdentifier:1).format()
-cmds << zwave.sceneControllerConfV1.sceneControllerConfGet(groupId:1).format()
-log.debug " $cmds"
-delayBetween(cmds,3000)
-}
 
-def off() {
-def cmds = []
-
-cmds << zwave.basicV1.basicSet(value: 1).format()
-cmds << zwave.switchMultilevelV1.switchMultilevelSet(value: 50).format()
-
-delayBetween(cmds,800)
-  
-}
 // convert a hex string to integer
 def integerhex(String v) {
 	if (v == null) {
