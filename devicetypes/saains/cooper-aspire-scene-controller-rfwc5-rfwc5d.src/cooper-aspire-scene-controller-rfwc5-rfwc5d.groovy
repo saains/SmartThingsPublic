@@ -172,9 +172,9 @@ def zwaveEvent(physicalgraph.zwave.commands.sceneactivationv1.SceneActivationSet
         //log.debug "$ino is $onoff , piorOnoff is:$priorOnoff ibit is $ibit"
         if (onoff != priorOnoff){
         //log.debug "$ino first if true"
-            if (onoff) { log.debug "$ino second if true"
+            if (onoff) { //log.debug "$ino second if true"
                event = createEvent(name: "Indicator$ino", value: "On", descriptionText: "$device.label Indicator:$ino On", linkText: "$device.label Indicator:$ino on")
-            } else { log.debug "$ino second if false"
+            } else { //log.debug "$ino second if false"
                 event = createEvent(name: "Indicator$ino", value: "Off", descriptionText: "$device.label Indicator:$ino Off", linkText: "$device.label Indicator:$ino off")
             }
         event2 = createEvent(name:"button",value:"pushed",data:[buttonNumber: ino],descriptionText:"$device.displayName button $ino pushed",linkText:"$device.label Button:$ino pushed",isStateChange: true)
@@ -297,7 +297,7 @@ if (assoclist) {
    
     def thisset = alists[i]
     def nodestring = ""
-    def thislevel = [0xFF]
+    def thislevel = [0x32]
     //log.debug "alists $i is $thisset"
     if (thisset){
     	def alevel = thisset.level as int
@@ -307,9 +307,12 @@ if (assoclist) {
         if (alevel <= 100 && alevel >= 0){        	
     		thislevel[0] = thisset.level as int
             }
+        if (alevel == 255){
+        	thislevel[0] = thisset.level as int
+            }
     	//log.debug "thislevel $i is $thislevel"
     	}
-    cmds << AssocNodes(nodestring,btn,1)
+    cmds << AssocNodes(nodestring,btn,0)
     	log.debug "setting configuration commands for button:$btn Level:$thislevel"        
     cmds << zwave.configurationV1.configurationSet(parameterNumber:btn, size:1, configurationValue: thislevel).format()
 	}
