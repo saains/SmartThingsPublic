@@ -9,7 +9,7 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
- *  Version .13
+ *  Version .14
 
  */
 metadata {
@@ -21,11 +21,15 @@ metadata {
         //capability "Switch"
         //capability "switchLevel"
         
-		//command "on"
-		//command "off"
-        //command "clearassoc"
-        command "CheckIndicators"
-        //command "initialize"
+		command "IndToggle"
+		command "Indicator1Toggle"
+        command "Indicator2Toggle"
+		command "Indicator3Toggle"
+		command "Indicator4Toggle"
+		command "Indicator5Toggle"
+        command "IndicatorSet"
+        command "CheckIndicators" //use to poll the indicator status
+        command "initialize"
 
         
         attribute "currentButton", "STRING"
@@ -106,10 +110,6 @@ metadata {
 	}
 }
 
-
-
-
-
 def parse(String description) {
         def result = null
         def cmd = zwave.parse(description)
@@ -169,7 +169,7 @@ def zwaveEvent(physicalgraph.zwave.commands.sceneactivationv1.SceneActivationSet
     	ibit = 2**i
     	ino = i + 1
     	onoff = indval & ibit
-        priorOnoff = state.lastindval & ibit
+    	priorOnoff = state.lastindval & ibit
         //log.debug "$ino is $onoff , piorOnoff is:$priorOnoff ibit is $ibit"
         if (onoff != priorOnoff){
         //log.debug "$ino first if true"
@@ -304,7 +304,7 @@ if (assoclist) {
     	def alevel = thisset.level as int
     	nodestring = thisset.anodes.join(", ")
         //log.debug "nodestring is: $nodestring"
-        //log.debug "xxxx $thisset.level.value"
+        //log.debug "xxxx $thisset.level.value"f
         if (alevel <= 100 && alevel >= 0){        	
     		thislevel[0] = thisset.level as int
             }
@@ -327,12 +327,53 @@ cmds << AssocNodes(scenelist, btn, 1)
 return (cmds)
 }
 
+def Indicator1Toggle(){
+IndToggle(1)
+}
+def Indicator2Toggle(){
+IndToggle(2)
+}
+def Indicator3Toggle(){
+IndToggle(3)
+}
+def Indicator4Toggle(){
+IndToggle(4)
+}
+def Indicator5Toggle(){
+IndToggle(5)
+}
 
+def IndToggle(Inumber){
+def ibit = 2**(Inumber-1)
+def Onoff = state.lastindval ^ ibit
+	delayBetween([
+    zwave.indicatorV1.indicatorSet(value: Onoff).format(),
+    zwave.indicatorV1.indicatorGet().format(),
+    ],500)
+}
+
+def IndicatorSet(Inumber, OnorOff){
+def Onoff = 0
+def ibit = 2**(Inumber-1)
+if (OnorOff == "On" || OnorOff ==1){
+	Onoff = state.lastindval | ibit
+    log.debug "this is $ibit Onoff on: $Onoff lastindval is: $state.lastindval"
+	} else {
+	Onoff = state.lastindval & ~ibit
+    log.debug "this is $ibit Onoff off: $Onoff lastindval is: $state.lastindval"
+    }
+
+	delayBetween([
+    zwave.indicatorV1.indicatorSet(value: Onoff).format(),
+    zwave.indicatorV1.indicatorGet().format(),
+    ],500)
+
+}
 
 def CheckIndicators(){
 	delayBetween([
 	zwave.indicatorV1.indicatorGet().format(),
-    ],1000)
+    ],500)
     
 }
 def initialize() {
@@ -343,6 +384,7 @@ def initialize() {
 def installed() {
 initialize()
 configure()
+state.updatedLastRanAt = now()
 }
 
 def updated() {
@@ -381,10 +423,6 @@ cmd = zwave.associationV1.associationSet(groupingIdentifier:group, nodeId:List3)
 
 return (cmd)
 }
-
-
-
-
 
 // convert a hex string to integer
 def integerhex(String v) {
