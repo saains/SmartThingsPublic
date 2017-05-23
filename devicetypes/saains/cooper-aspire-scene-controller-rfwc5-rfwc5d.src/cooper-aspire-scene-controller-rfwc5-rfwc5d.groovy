@@ -10,7 +10,9 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *  Version .14 Added Indicator control commands
-
+ *  Version .15 Updated Instructions
+ *  Version .16 Changed levels from 0-100 to 0-99
+ *
  */
 metadata {
 	definition (name: "Cooper Aspire Scene Controller RFWC5 RFWC5D", namespace: "saains", author: "Scott Ainsworth") {
@@ -64,33 +66,33 @@ metadata {
                 type: "paragraph",
                 element: "paragraph",
                 title: "Configure Scenes",
-                description: "The Cooper controller can control devices via scenes and via association.  Scene capable devices are those which report 2B in the Raw Description. Scene capable devices must have scenes locally configured. Scenes 251-255 are reserved to configure buttons not assigned another scene#. Entries for associated devices must be followed by a level setting. On off devices use 0 or 255, dimable devices use 0 to 100."
+                description: "The Cooper controller can control devices via scenes and/or via association.  Scene capable devices are those which report 2B,2C in the Raw Description. Scene capable devices must have scenes locally configured. Scenes 251-255 are reserved to configure buttons not assigned another scene#. Entries for associated devices must be followed by a level setting. On off devices use 0 or 255, dimable devices use 0 to 99. You must press the configure tile to activate the configuration.  It will take a few minutes complete"
             )
     section {
     	input "sceneNum1", "number", title: "Button 1 scene ID (1-250)", required: false
         input "dimdur1", "number", title: "Button 1 scene dimming duration (0-60) seconds", required: false
-		input "sceneCap1", "text", title: "Button 1 Scene Capable Devices -example (A3, 2C, 25)", required: false
-        input "assocCap1", "text", title: "Button 1 Devices via association, levels(0,1-100,255) -example(03, 100, 0E, 255)", required: false}
+		input "sceneCap1", "text", title: "Button 1 Scene Capable Device IDs example (A3, 12, 25)", required: false
+        input "assocCap1", "text", title: "Button 1 Devices via association, Device ID followed by level(0,1-99,255) example(03, 99, 0E, 255)", required: false}
     section {
     	input "sceneNum2", "number", title: "Button 2 scene ID (1-250)", required: false
         input "dimdur2", "number", title: "Button 2 scene dimming duration (0-60) seconds", required: false
-		input "sceneCap2", "text", title: "Button 2 Scene Capable Devices -example (A3, 2C, 25)", required: false
-        input "assocCap2", "text", title: "Button 2 Devices via association, levels(0,1-100,255) -example(03, 100, 0E, 255)", required: false}
+		input "sceneCap2", "text", title: "Button 2 Scene Capable Devices example (A3,12, 25)", required: false
+        input "assocCap2", "text", title: "Button 2 Devices via association, Device ID followed by level(0,1-99,255) example(03, 99, 0E, 255)", required: false}
     section {
     	input "sceneNum3", "number", title: "Button 3 scene ID (1-250)", required: false
         input "dimdur3", "number", title: "Button 3 scene dimming duration (0-60) seconds", required: false
-		input "sceneCap3", "text", title: "Button 3 Scene Capable Devices -example (A3, 2C, 25)", required: false
-        input "assocCap3", "text", title: "Button 3 Devices via association, levels(0,1-100,255) -example(03, 100, 0E, 255)", required: false}
+		input "sceneCap3", "text", title: "Button 3 Scene Capable Devices example (A3, 12, 25)", required: false
+        input "assocCap3", "text", title: "Button 3 Devices via association,Device ID followed by level(0,1-99,255) example(03, 99, 0E, 255)", required: false}
     section {
     	input "sceneNum4", "number", title: "Button 4 scene ID (1-250)", required: false
         input "dimdur4", "number", title: "Button 4 scene dimming duration (0-60) seconds", required: false
-		input "sceneCap4", "text", title: "Button 4 Scene Capable Devices -example (A3, 2C, 25)", required: false
-        input "assocCap4", "text", title: "Button 4 Devices via association, levels(0,1-100,255) -example(03, 100, 0E, 255)", required: false}
+		input "sceneCap4", "text", title: "Button 4 Scene Capable Devices example (A3, 12, 25)", required: false
+        input "assocCap4", "text", title: "Button 4 Devices via association, Device ID followed by level(0,1-99,255) example(03, 99, 0E, 255)", required: false}
     section {
     	input "sceneNum5", "number", title: "Button 5 scene ID (1-250)", required: false
         input "dimdur5", "number", title: "Button 5 scene dimming duration (0-60) seconds", required: false
-		input "sceneCap5", "text", title: "Button 5 Scene Capable Devices -example (A3, 2C, 25)", required: false
-        input "assocCap5", "text", title: "Button 5 Devices via association, levels(0,1-100,255) -example(03, 100, 0E, 255)", required: false}
+		input "sceneCap5", "text", title: "Button 5 Scene Capable Devices example (A3, 12, 25)", required: false
+        input "assocCap5", "text", title: "Button 5 Devices via association, Device ID followed by level(0,1-99,255) example(03, 99, 0E, 255)", required: false}
      }
 
 	simulator {
@@ -247,8 +249,8 @@ cmds << zwave.sceneControllerConfV1.sceneControllerConfGet(groupId:4).format()
 cmds += buttoncmds(5, s5, sceneCap5, assocCap5, d5)
 cmds << zwave.associationV1.associationGet(groupingIdentifier:5).format()
 cmds << zwave.sceneControllerConfV1.sceneControllerConfGet(groupId:5).format()
-// send commands
 
+// send commands
 log.debug "$cmds"
 log.debug "Please Wait this can take a few minutes"
 delayBetween(cmds,3000)
@@ -305,8 +307,9 @@ if (assoclist) {
     	nodestring = thisset.anodes.join(", ")
         //log.debug "nodestring is: $nodestring"
         //log.debug "xxxx $thisset.level.value"f
-        if (alevel <= 100 && alevel >= 0){        	
+        if (alevel <= 99 && alevel >= 0){        	
     		thislevel[0] = thisset.level as int
+            
             }
         if (alevel == 255){
         	thislevel[0] = thisset.level as int
