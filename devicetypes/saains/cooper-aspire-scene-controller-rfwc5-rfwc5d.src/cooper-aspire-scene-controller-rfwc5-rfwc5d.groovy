@@ -12,11 +12,13 @@
  *  Version .14 Added Indicator control commands
  *  Version .15 Updated Instructions
  *  Version .16 Changed levels from 0-100 to 0-99
+ *  Version .17 Changed indicator attributes from "On" and "Off" to "on" and "off" to consistent with a switch
+ *  Version .18 Added all indicator set command
  *
  */
 metadata {
 	definition (name: "Cooper Aspire Scene Controller RFWC5 RFWC5D", namespace: "saains", author: "Scott Ainsworth") {
-		//capability "Actuator"
+		capability "Actuator"
         capability "Button"
         capability "Configuration"
         capability "Sensor"
@@ -29,18 +31,19 @@ metadata {
 		command "Indicator3Toggle"
 		command "Indicator4Toggle"
 		command "Indicator5Toggle"
-        command "IndicatorSet"
+        command "IndicatorSet" , ["number", "number"] //Inumber, OnorOff
+        command "IndicatorAllSet", ["number"] //IndValue
         command "CheckIndicators" //use to poll the indicator status
         command "initialize"
 
         
         attribute "currentButton", "STRING"
         attribute "numberOfButtons", "number"
-        attribute "Indicator1", "enum",  ["On", "Off"]
-        attribute "Indicator2", "enum",  ["On", "Off"]
-        attribute "Indicator3","enum",  ["On", "Off"]
-        attribute "Indicator4","enum",  ["On", "Off"]
-        attribute "Indicator5","enum",  ["On", "Off"]
+        attribute "Indicator1", "enum",  ["on", "off"]
+        attribute "Indicator2", "enum",  ["on", "off"]
+        attribute "Indicator3","enum",  ["on", "off"]
+        attribute "Indicator4","enum",  ["on", "off"]
+        attribute "Indicator5","enum",  ["on", "off"]
         attribute "IndDisplay", "STRING"
         
 		// zw:L type:0202 mfr:001A prod:574D model:0000 ver:1.13 zwv:2.78 lib:01 cc:87,77,86,22,2D,85,72,21,70
@@ -176,9 +179,9 @@ def zwaveEvent(physicalgraph.zwave.commands.sceneactivationv1.SceneActivationSet
         if (onoff != priorOnoff){
         //log.debug "$ino first if true"
             if (onoff) { //log.debug "$ino second if true"
-               event = createEvent(name: "Indicator$ino", value: "On", descriptionText: "$device.label Indicator:$ino On", linkText: "$device.label Indicator:$ino on")
+               event = createEvent(name: "Indicator$ino", value: "on", descriptionText: "$device.label Indicator:$ino on", linkText: "$device.label Indicator:$ino on")
             } else { //log.debug "$ino second if false"
-                event = createEvent(name: "Indicator$ino", value: "Off", descriptionText: "$device.label Indicator:$ino Off", linkText: "$device.label Indicator:$ino off")
+                event = createEvent(name: "Indicator$ino", value: "off", descriptionText: "$device.label Indicator:$ino off", linkText: "$device.label Indicator:$ino off")
             }
         event2 = createEvent(name:"button",value:"pushed",data:[buttonNumber: ino],descriptionText:"$device.displayName button $ino pushed",linkText:"$device.label Button:$ino pushed",isStateChange: true)
         events << event
@@ -253,7 +256,7 @@ cmds << zwave.sceneControllerConfV1.sceneControllerConfGet(groupId:5).format()
 // send commands
 log.debug "$cmds"
 log.debug "Please Wait this can take a few minutes"
-delayBetween(cmds,3000)
+delayBetween(cmds,3500)
 }
 
 
@@ -355,28 +358,43 @@ def Onoff = state.lastindval ^ ibit
     ],500)
 }
 
+// because of delay in getting state.lastindval delays of at least 1 second should be used between calling this command.
 def IndicatorSet(Inumber, OnorOff){
 def Onoff = 0
 def ibit = 2**(Inumber-1)
-if (OnorOff == "On" || OnorOff ==1){
-	Onoff = state.lastindval | ibit
-    log.debug "this is $ibit Onoff on: $Onoff lastindval is: $state.lastindval"
-	} else {
-	Onoff = state.lastindval & ~ibit
-    log.debug "this is $ibit Onoff off: $Onoff lastindval is: $state.lastindval"
-    }
+if (Inumber >=1 && Inumber <=5){
+	if (OnorOff == "On" || OnorOff ==1){
+		Onoff = state.lastindval | ibit
+    	//log.debug "this is $ibit Onoff on: $Onoff lastindval is: $state.lastindval"
+		} else {
+		Onoff = state.lastindval & ~ibit
+   		//log.debug "this is $ibit Onoff off: $Onoff lastindval is: $state.lastindval"
+    	}
 
 	delayBetween([
     zwave.indicatorV1.indicatorSet(value: Onoff).format(),
     zwave.indicatorV1.indicatorGet().format(),
-    ],500)
-
+    ],300)
+    
+} else {log.debug "$device.id Indidcator set out of range"}
 }
+
+def IndicatorAllSet(IndValue){
+
+if (IndValue <=31){
+	delayBetween([
+    zwave.indicatorV1.indicatorSet(value: IndValue).format(),
+    zwave.indicatorV1.indicatorGet().format(),
+    ],300)
+    
+} else {log.debug "$device.id Indidcator set out of range"}
+}
+
 
 def CheckIndicators(){
 	delayBetween([
 	zwave.indicatorV1.indicatorGet().format(),
-    ],500)
+    ],100)
     
 }
 def initialize() {
