@@ -14,6 +14,7 @@
  *  Version .16 Changed levels from 0-100 to 0-99
  *  Version .17 Changed indicator attributes from "On" and "Off" to "on" and "off" to consistent with a switch
  *  Version .18 Added all indicator set command
+ *  Version .19 Added buttonpush state to prevent indicator set and toggle commands from triggering a button event.
  *
  */
 metadata {
@@ -131,6 +132,7 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
     def result = []
     def cmds = []
     //result << createEvent(descriptionText: "${device.displayName} Button Action")
+    state.buttonpush = 1
     cmds << response(zwave.indicatorV1.indicatorGet())
     sendHubCommand(cmds)  
     //log.debug "$result"
@@ -142,6 +144,7 @@ def zwaveEvent(physicalgraph.zwave.commands.sceneactivationv1.SceneActivationSet
     def result = []
     def cmds = []
     //result << createEvent(descriptionText: "${device.displayName} Button Action")
+    state.buttonpush = 1
     cmds << response(zwave.indicatorV1.indicatorGet())
     sendHubCommand(cmds)  
     //log.debug "$result"
@@ -183,9 +186,11 @@ def zwaveEvent(physicalgraph.zwave.commands.sceneactivationv1.SceneActivationSet
             } else { //log.debug "$ino second if false"
                 event = createEvent(name: "Indicator$ino", value: "off", descriptionText: "$device.label Indicator:$ino off", linkText: "$device.label Indicator:$ino off")
             }
-        event2 = createEvent(name:"button",value:"pushed",data:[buttonNumber: ino],descriptionText:"$device.displayName button $ino pushed",linkText:"$device.label Button:$ino pushed",isStateChange: true)
         events << event
-     	events << event2
+        if (state.buttonpush == 1){
+       	 	event2 = createEvent(name:"button",value:"pushed",data:[buttonNumber: ino],descriptionText:"$device.displayName button $ino pushed",linkText:"$device.label Button:$ino pushed",isStateChange: true)
+     		events << event2
+        }
         } //else { log.debug "$ino first if false"}
     }
     state.lastindval = indval
@@ -352,6 +357,7 @@ IndToggle(5)
 def IndToggle(Inumber){
 def ibit = 2**(Inumber-1)
 def Onoff = state.lastindval ^ ibit
+	state.buttonpush = 0  //upcoming indicatorGet command is not the result of a button press
 	delayBetween([
     zwave.indicatorV1.indicatorSet(value: Onoff).format(),
     zwave.indicatorV1.indicatorGet().format(),
@@ -362,6 +368,7 @@ def Onoff = state.lastindval ^ ibit
 def IndicatorSet(Inumber, OnorOff){
 def Onoff = 0
 def ibit = 2**(Inumber-1)
+
 if (Inumber >=1 && Inumber <=5){
 	if (OnorOff == "On" || OnorOff ==1){
 		Onoff = state.lastindval | ibit
@@ -370,7 +377,7 @@ if (Inumber >=1 && Inumber <=5){
 		Onoff = state.lastindval & ~ibit
    		//log.debug "this is $ibit Onoff off: $Onoff lastindval is: $state.lastindval"
     	}
-
+	state.buttonpush = 0  //upcoming indicatorGet command is not the result of a button press
 	delayBetween([
     zwave.indicatorV1.indicatorSet(value: Onoff).format(),
     zwave.indicatorV1.indicatorGet().format(),
@@ -382,6 +389,7 @@ if (Inumber >=1 && Inumber <=5){
 def IndicatorAllSet(IndValue){
 
 if (IndValue <=31){
+	state.buttonpush = 0  //upcoming indicatorGet command is not the result of a button press
 	delayBetween([
     zwave.indicatorV1.indicatorSet(value: IndValue).format(),
     zwave.indicatorV1.indicatorGet().format(),
@@ -392,6 +400,7 @@ if (IndValue <=31){
 
 
 def CheckIndicators(){
+	state.buttonpush = 0  //upcoming indicatorGet command is not the result of a button press
 	delayBetween([
 	zwave.indicatorV1.indicatorGet().format(),
     ],100)
