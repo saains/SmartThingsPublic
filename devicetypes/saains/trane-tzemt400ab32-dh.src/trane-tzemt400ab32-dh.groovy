@@ -21,6 +21,7 @@ metadata {
 	definition (name: "TRANE TZEMT400AB32 DH", namespace: "saains", author: "Scott Ainsworth") {
 		capability "Actuator"
 		capability "Temperature Measurement"
+        capability "Thermostat Operating State"
 		capability "Relative Humidity Measurement"
 		capability "Thermostat"
 		capability "Configuration"
@@ -128,6 +129,10 @@ metadata {
 		valueTile("coolingSetpoint", "device.coolingSetpoint",height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
 			state "cool", label:'${currentValue}° cool', backgroundColor:"#ffffff"
 		}
+        standardTile("thermostatOperatingState", "device.thermostatOperatingState", width: 2, height:2, decoration: "flat") {
+			state "thermostatOperatingState", label:'${currentValue}', backgroundColor:"#ffffff"
+		}
+        
 		standardTile("refresh", "device.thermostatMode", inactiveLabel: false, decoration: "flat") {
 			state "default", label:"Refresh", action:"polling.poll", icon:"st.secondary.refresh"
 		}
@@ -135,18 +140,18 @@ metadata {
 			state "configure", label:"Configure", action:"configuration.configure", icon:"st.secondary.configure"
 		}
         
-        standardTile("Esave", "device.EsaveModeState", inactiveLabel: false, decoration: "flat") {
+        standardTile("Esave", "device.EsaveModeState",height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
 			state "esave-on", label:'${name}', action:"Esavemode_off", nextState:"esave-off"
 			state "esave-off", label:'${name}', action:"Esavemode_on", nextState:"esave-on"
 		}
         
-        standardTile("Schedule", "device.ScheduleModeState", inactiveLabel: false, decoration: "flat") {
+        standardTile("Schedule", "device.ScheduleModeState",height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
 			state "run", label:'${name}', action:"holdSch", nextState:"hold"
 			state "hold", label:'${name}', action:"runSch", nextState:"run"
        	}
         
 		main "temperature"
-		details(["temperature", "mode", "fanMode", "heatSliderControl", "heatingSetpoint", "coolSliderControl", "coolingSetpoint", "refresh", "configure","Esave","Schedule"])
+		details(["temperature", "mode", "fanMode", "heatSliderControl", "heatingSetpoint", "coolSliderControl", "coolingSetpoint", "thermostatOperatingState", "refresh", "configure","Esave","Schedule"])
 	}
 }
 
@@ -198,6 +203,14 @@ def parse(String description)
 	result
 }
 
+def zwaveEvent(physicalgraph.zwave.commands.multichannelv3.MultiInstanceCmdEncap cmd) {
+	def encapsulatedCommand = cmd.encapsulatedCommand([0x31: 3])
+    log.debug ("Command from endpoint ${cmd.sourceEndPoint}: ${encapsulatedCommand}")
+	if (encapsulatedCommand) {
+		return zwaveEvent(encapsulatedCommand)
+	}
+}
+
 // Event Generation
 def zwaveEvent(physicalgraph.zwave.commands.thermostatsetpointv2.ThermostatSetpointReport cmd)
 {
@@ -223,49 +236,63 @@ def zwaveEvent(physicalgraph.zwave.commands.thermostatsetpointv2.ThermostatSetpo
 	map
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv3.SensorMultilevelReport cmd)
-{
+def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv2.SensorMultilevelReport cmd) {
 	def map = [:]
 	if (cmd.sensorType == 1) {
-		map.value = convertTemperatureIfNeeded(cmd.scaledSensorValue, cmd.scale == 1 ? "F" : "C", cmd.precision)
-		map.unit = getTemperatureScale()
 		map.name = "temperature"
+		map.unit = getTemperatureScale()
+		map.value = getTempInLocalScale(cmd.scaledSensorValue, (cmd.scale == 1 ? "F" : "C"))
+		updateThermostatSetpoint(null, null)
+	} else if (cmd.sensorType == 5) {
+		map.name = "humidity"
+		map.unit = "%"
+		map.value = cmd.scaledSensorValue
+	}
+	sendEvent(map)
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv3.SensorMultilevelReport cmd) {
+	def map = [:]
+	if (cmd.sensorType == 1) {
+		map.name = "temperature"
+		map.unit = getTemperatureScale()
+		map.value = getTempInLocalScale(cmd.scaledSensorValue, (cmd.scale == 1 ? "F" : "C"))
+		updateThermostatSetpoint(null, null)
 	} else if (cmd.sensorType == 5) {
 		map.value = cmd.scaledSensorValue
 		map.unit = "%"
 		map.name = "humidity"
 	}
-	map
+	sendEvent(map)
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport cmd)
-{
-	def map = [:]
+
+def zwaveEvent(physicalgraph.zwave.commands.thermostatoperatingstatev2.ThermostatOperatingStateReport cmd) {
+	def map = [name: "thermostatOperatingState"]
 	switch (cmd.operatingState) {
-		case physicalgraph.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_IDLE:
+		case physicalgraph.zwave.commands.thermostatoperatingstatev2.ThermostatOperatingStateReport.OPERATING_STATE_IDLE:
 			map.value = "idle"
 			break
-		case physicalgraph.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_HEATING:
+		case physicalgraph.zwave.commands.thermostatoperatingstatev2.ThermostatOperatingStateReport.OPERATING_STATE_HEATING:
 			map.value = "heating"
 			break
-		case physicalgraph.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_COOLING:
+		case physicalgraph.zwave.commands.thermostatoperatingstatev2.ThermostatOperatingStateReport.OPERATING_STATE_COOLING:
 			map.value = "cooling"
 			break
-		case physicalgraph.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_FAN_ONLY:
+		case physicalgraph.zwave.commands.thermostatoperatingstatev2.ThermostatOperatingStateReport.OPERATING_STATE_FAN_ONLY:
 			map.value = "fan only"
 			break
-		case physicalgraph.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_PENDING_HEAT:
+		case physicalgraph.zwave.commands.thermostatoperatingstatev2.ThermostatOperatingStateReport.OPERATING_STATE_PENDING_HEAT:
 			map.value = "pending heat"
 			break
-		case physicalgraph.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_PENDING_COOL:
+		case physicalgraph.zwave.commands.thermostatoperatingstatev2.ThermostatOperatingStateReport.OPERATING_STATE_PENDING_COOL:
 			map.value = "pending cool"
 			break
-		case physicalgraph.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_VENT_ECONOMIZER:
+		case physicalgraph.zwave.commands.thermostatoperatingstatev2.ThermostatOperatingStateReport.OPERATING_STATE_VENT_ECONOMIZER:
 			map.value = "vent economizer"
 			break
 	}
-	map.name = "thermostatOperatingState"
-	map
+	sendEvent(map)
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.thermostatfanstatev1.ThermostatFanStateReport cmd) {
@@ -320,14 +347,11 @@ def zwaveEvent(physicalgraph.zwave.commands.thermostatfanmodev3.ThermostatFanMod
 			map.value = "fanCirculate"
 			break
 	}
-    //log.debug "L307 thermostate fanMode is: $map.value"
+    log.debug "L323 thermostate fanMode is: $map.value"
 	map.name = "thermostatFanMode"
 	map.displayed = false
 	map
 }
-
-
-
 
 def zwaveEvent(physicalgraph.zwave.commands.thermostatmodev2.ThermostatModeSupportedReport cmd) {
 	def supportedModes = ""
@@ -342,7 +366,7 @@ def zwaveEvent(physicalgraph.zwave.commands.thermostatmodev2.ThermostatModeSuppo
 def zwaveEvent(physicalgraph.zwave.commands.thermostatfanmodev3.ThermostatFanModeSupportedReport cmd) {
 	def supportedFanModes = "fanAuto fanOn fanCirculate "
 	state.supportedFanModes = supportedFanModes
-    //log.debug "L331 supportedFanModes are: $state.supportedFanModes , cmd is $cmd"
+    log.debug "L331 supportedFanModes are: $state.supportedFanModes , cmd is $cmd"
 }
 
 
@@ -376,29 +400,57 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv2.ConfigurationReport 
 		}
 	}
     else {map = null}
-
-
-
+    
 map
     
 }
 
+def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
+	log.debug "Zwave BasicReport: $cmd"
+}
+
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
-	log.warn "Unexpected zwave command: $cmd"
+	log.warn "Unexpected zwave command TZEM: $cmd"
 }
 
 // Command Implementations
+//def poll() {
+//	delayBetween([
+		//zwave.sensorMultilevelV3.sensorMultilevelGet().format(), // current temperature
+//        new physicalgraph.device.HubAction(zwave.multiChannelV3.multiInstanceCmdEncap(instance: 1).encapsulate(zwave.sensorMultilevelV3.sensorMultilevelGet()).format()), // temperature
+//		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format(),
+//		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format(),
+//		zwave.thermostatModeV2.thermostatModeGet().format(),
+//		zwave.thermostatFanModeV3.thermostatFanModeGet().format(),
+//		zwave.thermostatOperatingStateV1.thermostatOperatingStateGet().format(),
+//        zwave.basicV1.basicGet().format()
+//	], 2300)
+//}
+
 def poll() {
-	delayBetween([
-		zwave.sensorMultilevelV3.sensorMultilevelGet().format(), // current temperature
-		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format(),
-		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format(),
-		zwave.thermostatModeV2.thermostatModeGet().format(),
-		zwave.thermostatFanModeV3.thermostatFanModeGet().format(),
-		zwave.thermostatOperatingStateV1.thermostatOperatingStateGet().format(),
-        zwave.basicV1.basicGet().format()
-	], 2300)
+	def cmds = []
+	cmds << new physicalgraph.device.HubAction(zwave.thermostatModeV2.thermostatModeSupportedGet().format())
+	cmds << new physicalgraph.device.HubAction(zwave.thermostatFanModeV3.thermostatFanModeSupportedGet().format())
+	cmds << new physicalgraph.device.HubAction(zwave.thermostatFanModeV3.thermostatFanModeGet().format())
+//	cmds << new physicalgraph.device.HubAction(zwave.batteryV1.batteryGet().format())
+	cmds << new physicalgraph.device.HubAction(zwave.multiChannelV3.multiInstanceCmdEncap(instance: 2).encapsulate(zwave.sensorMultilevelV3.sensorMultilevelGet()).format()) // humidity
+	cmds << new physicalgraph.device.HubAction(zwave.multiChannelV3.multiInstanceCmdEncap(instance: 1).encapsulate(zwave.sensorMultilevelV3.sensorMultilevelGet()).format()) // temperature
+	cmds << new physicalgraph.device.HubAction(zwave.thermostatOperatingStateV1.thermostatOperatingStateGet().format())
+	//def time = getTimeAndDay()
+//	if (time) {
+//		cmds << new physicalgraph.device.HubAction(zwave.clockV1.clockSet(time).format())
+//	}
+	// ThermostatModeReport will spawn request for operating state and setpoints so request this last
+	// this as temperature and mode is needed to determine which setpoints should be requested first
+	cmds << new physicalgraph.device.HubAction(zwave.thermostatModeV2.thermostatModeGet().format())
+	// Add 2 seconds delay between each command to avoid flooding the Z-Wave network choking the hub 
+	sendHubCommand(cmds, 2000)
 }
+
+
+
+
+
 
 def quickSetHeat(degrees) {
 	setHeatingSetpoint(degrees, 1000)
@@ -562,37 +614,7 @@ def fanCirculate() {
 	], standardDelay)
 }
 
-
-  
-
-
-def Esavemode_on() {
-        delayBetween([
-                zwave.basicV1.basicSet(value: 0x00).format(),
-                zwave.configurationV2.configurationGet(parameterNumber:25).format()
-        ], standardDelay) 
-}
-
-def Esavemode_off() {
-        delayBetween([
-                zwave.basicV1.basicSet(value: 0xFF).format(),
-                zwave.configurationV2.configurationGet(parameterNumber:25).format()
-        ], standardDelay)
-}
-
-def runSch() {
-        delayBetween([
-        zwave.configurationV2.configurationSet(configurationValue:[1], parameterNumber:132, scaledConfigurationValue:1, size:1).format(),
-        zwave.configurationV2.configurationGet(parameterNumber:132).format()
-        ], standardDelay)
-}
-
-def holdSch() {
-        delayBetween([
-           	zwave.configurationV2.configurationSet(configurationValue:[0], parameterNumber:132, scaledConfigurationValue:0, size:1).format(),
-            zwave.configurationV2.configurationGet(parameterNumber:132).format()
-        ], standardDelay)
-}
+-
 
 private getStandardDelay() {
 	1000
