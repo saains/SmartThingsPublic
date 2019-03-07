@@ -347,7 +347,7 @@ def zwaveEvent(physicalgraph.zwave.commands.thermostatfanmodev3.ThermostatFanMod
 			map.value = "fanCirculate"
 			break
 	}
-    log.debug "L323 thermostate fanMode is: $map.value"
+    //log.debug "L323 thermostate fanMode is: $map.value"
 	map.name = "thermostatFanMode"
 	map.displayed = false
 	map
@@ -614,7 +614,6 @@ def fanCirculate() {
 	], standardDelay)
 }
 
--
 
 private getStandardDelay() {
 	1000
