@@ -414,26 +414,13 @@ def zwaveEvent(physicalgraph.zwave.Command cmd) {
 }
 
 // Command Implementations
-//def poll() {
-//	delayBetween([
-		//zwave.sensorMultilevelV3.sensorMultilevelGet().format(), // current temperature
-//        new physicalgraph.device.HubAction(zwave.multiChannelV3.multiInstanceCmdEncap(instance: 1).encapsulate(zwave.sensorMultilevelV3.sensorMultilevelGet()).format()), // temperature
-//		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format(),
-//		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format(),
-//		zwave.thermostatModeV2.thermostatModeGet().format(),
-//		zwave.thermostatFanModeV3.thermostatFanModeGet().format(),
-//		zwave.thermostatOperatingStateV1.thermostatOperatingStateGet().format(),
-//        zwave.basicV1.basicGet().format()
-//	], 2300)
-//}
 
 def poll() {
 	def cmds = []
 	cmds << new physicalgraph.device.HubAction(zwave.thermostatModeV2.thermostatModeSupportedGet().format())
 	cmds << new physicalgraph.device.HubAction(zwave.thermostatFanModeV3.thermostatFanModeSupportedGet().format())
 	cmds << new physicalgraph.device.HubAction(zwave.thermostatFanModeV3.thermostatFanModeGet().format())
-//	cmds << new physicalgraph.device.HubAction(zwave.batteryV1.batteryGet().format())
-	cmds << new physicalgraph.device.HubAction(zwave.multiChannelV3.multiInstanceCmdEncap(instance: 2).encapsulate(zwave.sensorMultilevelV3.sensorMultilevelGet()).format()) // humidity
+//	cmds << new physicalgraph.device.HubAction(zwave.multiChannelV3.multiInstanceCmdEncap(instance: 2).encapsulate(zwave.sensorMultilevelV3.sensorMultilevelGet()).format()) // humidity
 	cmds << new physicalgraph.device.HubAction(zwave.multiChannelV3.multiInstanceCmdEncap(instance: 1).encapsulate(zwave.sensorMultilevelV3.sensorMultilevelGet()).format()) // temperature
 	cmds << new physicalgraph.device.HubAction(zwave.thermostatOperatingStateV1.thermostatOperatingStateGet().format())
 	//def time = getTimeAndDay()
@@ -571,12 +558,12 @@ def heat() {
 	], standardDelay)
 }
 
-def emergencyHeat() {
+/*def emergencyHeat() {
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 4).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
 	], standardDelay)
-}
+}*/
 
 def cool() {
 	delayBetween([
@@ -613,6 +600,35 @@ def fanCirculate() {
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()       
 	], standardDelay)
 }
+
+def Esavemode_on() {
+        delayBetween([
+                zwave.basicV1.basicSet(value: 0x00).format(),
+                zwave.configurationV2.configurationGet(parameterNumber:25).format()
+        ], standardDelay) 
+}
+
+def Esavemode_off() {
+        delayBetween([
+                zwave.basicV1.basicSet(value: 0xFF).format(),
+                zwave.configurationV2.configurationGet(parameterNumber:25).format()
+        ], standardDelay)
+}
+
+def runSch() {
+        delayBetween([
+        zwave.configurationV2.configurationSet(configurationValue:[1], parameterNumber:132, scaledConfigurationValue:1, size:1).format(),
+        zwave.configurationV2.configurationGet(parameterNumber:132).format()
+        ], standardDelay)
+}
+
+def holdSch() {
+        delayBetween([
+           	zwave.configurationV2.configurationSet(configurationValue:[0], parameterNumber:132, scaledConfigurationValue:0, size:1).format(),
+            zwave.configurationV2.configurationGet(parameterNumber:132).format()
+        ], standardDelay)
+}
+
 
 
 private getStandardDelay() {
